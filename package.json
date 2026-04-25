@@ -1,17 +1,19 @@
 {
   "name": "@electerm/ftp-srv",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Modern, extensible FTP Server (TypeScript version)",
   "keywords": [
     "ftp",
     "ftp-server",
     "ftp-srv",
+    "ftp-svr",
     "ftpd",
     "ftpserver",
     "server",
     "typescript",
     "esm",
-    "cjs"
+    "cjs",
+    "electerm"
   ],
   "license": "MIT",
   "type": "module",
@@ -30,11 +32,14 @@
     }
   },
   "bin": {
-    "ftp-srv": "./bin/index.js"
+    "electerm-ftp-srv": "./bin/index.cjs"
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "LICENSE",
+    "README.md",
+    "README.zh.md"
   ],
   "repository": {
     "type": "git",
