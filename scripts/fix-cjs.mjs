@@ -1,4 +1,4 @@
-import { writeFile } from 'fs/promises';
+import { writeFile, appendFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -11,6 +11,13 @@ async function fixCjs() {
   await writeFile(
     join(cjsDir, 'package.json'),
     JSON.stringify({ type: 'commonjs' }, null, 2) + '\n',
+  );
+
+  // Add module.exports = FtpServer for flexible CJS require
+  // This allows: const FtpSrv = require('@electerm/ftp-srv');
+  await appendFile(
+    join(cjsDir, 'index.js'),
+    '\nmodule.exports = module.exports.default;\n',
   );
 }
 
