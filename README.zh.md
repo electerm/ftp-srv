@@ -3,19 +3,19 @@
 [![English](https://img.shields.io/badge/lang-en-blue.svg)](README.md)
 [![中文](https://img.shields.io/badge/lang-中文-orange.svg)](README.zh.md)
 
-Modern, extensible FTP Server (TypeScript version).
+现代、可扩展的 FTP 服务器（TypeScript 版本）。
 
-This is a TypeScript fork of [ftp-srv](https://github.com/autovance/ftp-srv), published in both ESM and CJS formats. Just to get rid of the those security vulnerabilities in the original version. The API is mostly the same as the original, with some minor adjustments to fit TypeScript and modern JavaScript practices.
+本项目是 [ftp-srv](https://github.com/autovance/ftp-srv) 的 TypeScript 重构版本，同时发布 ESM 和 CJS 格式。
 
-All credit for the original implementation goes to the original author [Tyler Stewart](https://github.com/autovance/ftp-srv). See [CREDITS](CREDITS) for details.
+原始实现的全部功劳归于原作者 [Tyler Stewart](https://github.com/autovance/ftp-srv)。详见 [CREDITS](CREDITS) 文件。
 
-## Install
+## 安装
 
 ```bash
 npm install @electerm/ftp-srv
 ```
 
-## Usage
+## 使用
 
 ```js
 // ESM
@@ -33,11 +33,11 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
   if (username === 'anonymous' && password === 'anonymous') {
     return resolve({ root: '/' });
   }
-  return reject(new Error('Invalid username or password'));
+  return reject(new Error('用户名或密码无效'));
 });
 
 ftpServer.listen().then(() => {
-  console.log('FTP server is listening...');
+  console.log('FTP 服务器正在监听...');
 });
 ```
 
@@ -46,52 +46,52 @@ ftpServer.listen().then(() => {
 ### `new FtpSrv({options})`
 
 #### url
-URL string indicating the protocol, hostname, and port to listen on.
-- `ftp` - Plain FTP
-- `ftps` - Implicit FTP over TLS
+URL 字符串，表示协议、主机名和监听的端口。
+- `ftp` - 普通 FTP
+- `ftps` - 隐式 FTP over TLS
 
-Default: `"ftp://127.0.0.1:21"`
+默认值: `"ftp://127.0.0.1:21"`
 
 #### pasv_url
-IP address or function to provide to the client for passive connections.
+提供给客户端用于被动连接的 IP 地址或函数。
 
 #### pasv_min
-Starting port for passive connections. Default: `1024`
+被动连接的起始端口。默认值: `1024`
 
 #### pasv_max
-Ending port for passive connections. Default: `65535`
+被动连接的结束端口。默认值: `65535`
 
 #### greeting
-Array of lines or string to send when a client connects.
+客户端连接时发送的欢迎消息（字符串数组或字符串）。
 
 #### tls
-Node TLS secure context object for implicit or explicit TLS connections.
+用于隐式或显式 TLS 连接的 Node TLS 安全上下文对象。
 
 #### anonymous
-If true, allows anonymous login.
+如果为 true，允许匿名登录。
 
 #### blacklist
-Array of commands that are not allowed.
+不允许的命令数组。
 
 #### whitelist
-Array of commands that are only allowed.
+仅允许的命令数组。
 
 #### file_format
-Format for file stat queries. Default: `"ls"`
-- `ls` - bin/ls format
-- `ep` - Easily Parsed LIST format
-- `function` - Custom format function
+文件状态查询格式。默认值: `"ls"`
+- `ls` - bin/ls 格式
+- `ep` - 易于解析的 LIST 格式
+- `function` - 自定义格式函数
 
 #### log
-A bunyan logger instance.
+bunyan 日志实例。
 
 #### timeout
-Idle connection timeout in ms. Default: `0`
+空闲连接超时时间（毫秒）。默认值: `0`
 
 #### endOnProcessSignal
-Whether to close server on SIGTERM/SIGINT/SIGQUIT. Default: `true`
+是否在收到 SIGTERM/SIGINT/SIGQUIT 时关闭服务器。默认值: `true`
 
-## Events
+## 事件
 
 ### `login`
 ```js
@@ -118,9 +118,9 @@ ftpServer.on('client-error', ({ connection, context, error }) => { ... });
 ftpServer.on('server-error', ({ error }) => { ... });
 ```
 
-## File System
+## 文件系统
 
-The default file system can be extended:
+默认文件系统可以被扩展：
 
 ```js
 import { FileSystem } from '@electerm/ftp-srv';
@@ -131,12 +131,12 @@ class MyFileSystem extends FileSystem {
   }
 
   async get(fileName) {
-    // Custom implementation
+    // 自定义实现
   }
 }
 ```
 
-## CLI
+## 命令行
 
 ```bash
 npx ftp-srv ftp://0.0.0.0:9876 --root ~/Documents

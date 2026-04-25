@@ -1,0 +1,13 @@
+{
+  "name": "ftp-srv-integration",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test-cjs.js test-esm.js",
+    "test:cjs": "node --test test-cjs.js",
+    "test:esm": "node --test test-esm.js"
+  },
+  "dependencies": {
+    "basic-ftp": "^5.3.0"
+  }
+}

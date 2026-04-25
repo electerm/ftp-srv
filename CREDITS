@@ -1,0 +1,16 @@
+# Credits
+
+This project is a fork of [ftp-srv](https://github.com/autovance/ftp-srv).
+
+## Original Author
+
+**Tyler Stewart** <tylers490@gmail.com>
+
+Original repository: https://github.com/autovance/ftp-srv
+
+## License
+
+The original ftp-srv project is licensed under MIT.
+This fork retains the same MIT license.
+
+All credit for the original FTP server implementation goes to the original author.

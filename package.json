@@ -1,7 +1,7 @@
 {
-  "name": "ftp-srv",
-  "version": "0.0.0",
-  "description": "Modern, extensible FTP Server",
+  "name": "@electerm/ftp-srv",
+  "version": "1.0.2",
+  "description": "Modern, extensible FTP Server (TypeScript version)",
   "keywords": [
     "ftp",
     "ftp-server",
@@ -9,85 +9,64 @@
     "ftp-svr",
     "ftpd",
     "ftpserver",
-    "server"
+    "server",
+    "typescript",
+    "esm",
+    "cjs"
   ],
   "license": "MIT",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "bin": {
+    "ftp-srv": "./bin/index.js"
+  },
   "files": [
-    "src",
-    "bin",
-    "ftp-srv.d.ts"
+    "dist",
+    "bin"
   ],
-  "main": "ftp-srv.js",
-  "bin": "./bin/index.js",
-  "types": "./ftp-srv.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/autovance/ftp-srv"
+    "url": "https://github.com/electerm/ftp-srv"
   },
   "scripts": {
-    "pre-release": "npm run verify",
-    "test": "mocha test/*/*/*.spec.js test/*/*.spec.js test/*.spec.js",
-    "verify": "eslint src/**/*.js test/**/*.js bin/**/*.js"
-  },
-  "release": {
-    "verifyConditions": "condition-circle",
-    "branch": "main",
-    "branches": [
-      "main"
-    ]
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
-    }
-  },
-  "lint-staged": {
-    "*.js": [
-      "eslint --fix"
-    ]
-  },
-  "commitlint": {
-    "extends": [
-      "@commitlint/config-conventional"
-    ]
-  },
-  "eslintConfig": {
-    "extends": "eslint:recommended",
-    "env": {
-      "node": true,
-      "mocha": true,
-      "es6": true
-    },
-    "parserOptions": {
-      "ecmaVersion": 6,
-      "sourceType": "module"
-    }
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc --project tsconfig.esm.json && node scripts/fix-esm.mjs",
+    "build:cjs": "rm -rf dist/cjs && tsc --project tsconfig.cjs.json && node scripts/fix-cjs.mjs",
+    "dev": "tsc --watch --project tsconfig.esm.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "cd integration && node --test test-cjs.js test-esm.js",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "bluebird": "^3.5.1",
-    "bunyan": "^1.8.12",
-    "neoip": "^2.1.0",
-    "lodash": "^4.17.15",
-    "moment": "^2.22.1",
-    "uuid": "^11.0.2",
-    "yargs": "^15.4.1"
+    "bunyan": "^1.8.15",
+    "commander": "^14.0.3",
+    "dayjs": "^1.11.13",
+    "uuid": "^11.0.2"
   },
   "devDependencies": {
-    "@commitlint/cli": "^10.0.0",
-    "@commitlint/config-conventional": "^16.2.1",
-    "@icetee/ftp": "^1.0.2",
-    "chai": "^4.2.0",
-    "condition-circle": "^2.0.2",
-    "eslint": "^5.14.1",
-    "husky": "^1.3.1",
-    "lint-staged": "^12.3.7",
-    "mocha": "^9.2.2",
-    "rimraf": "^2.6.1",
-    "semantic-release": "^19.0.2",
-    "sinon": "^2.3.5"
+    "@icetee/ftp": "^1.0.8",
+    "@types/bunyan": "^1.8.11",
+    "@types/node": "^22.10.5",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.0"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   }
 }
