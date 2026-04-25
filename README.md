@@ -5,9 +5,9 @@
 
 Modern, extensible FTP Server (TypeScript version).
 
-This is a TypeScript fork of [ftp-srv](https://github.com/autovance/ftp-srv), published in both ESM and CJS formats. Just to get rid of the those security vulnerabilities in the original version. The API is mostly the same as the original, with some minor adjustments to fit TypeScript and modern JavaScript practices.
+This is a TypeScript fork of [ftp-srv](https://github.com/autovance/ftp-srv), published in both ESM and CJS formats — with security vulnerabilities from the original removed. The API is backward-compatible with the original `ftp-srv`.
 
-All credit for the original implementation goes to the original author [Tyler Stewart](https://github.com/autovance/ftp-srv). See [CREDITS](CREDITS) for details.
+All credit for the original implementation goes to [Tyler Stewart](https://github.com/autovance/ftp-srv). See [CREDITS](CREDITS) for details.
 
 ## Install
 
@@ -19,127 +19,238 @@ npm install @electerm/ftp-srv
 
 ```js
 // ESM
-import FtpSrv from '@electerm/ftp-srv';
+import FtpServer from '@electerm/ftp-srv';
 
 // CJS
-const FtpSrv = require('@electerm/ftp-srv');
+const { FtpServer } = require('@electerm/ftp-srv');
 
-const ftpServer = new FtpSrv({
+// Backward-compat alias (original ftp-srv API)
+const { FtpSrv } = require('@electerm/ftp-srv');
+```
+
+### Basic example
+
+```js
+import FtpServer from '@electerm/ftp-srv';
+
+const server = new FtpServer({
   url: 'ftp://0.0.0.0:21',
-  anonymous: true,
+  anonymous: false,
 });
 
-ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
-  if (username === 'anonymous' && password === 'anonymous') {
-    return resolve({ root: '/' });
+server.on('login', ({ connection, username, password }, resolve, reject) => {
+  if (username === 'admin' && password === 'secret') {
+    return resolve({ root: '/srv/ftp' });
   }
-  return reject(new Error('Invalid username or password'));
+  return reject(new Error('Invalid credentials'));
 });
 
-ftpServer.listen().then(() => {
-  console.log('FTP server is listening...');
+await server.listen();
+console.log('FTP server listening on port 21');
+
+// Graceful shutdown
+await server.close();
+```
+
+### With authentication and custom root per user
+
+```js
+const server = new FtpServer({
+  url: 'ftp://0.0.0.0:2121',
+  pasv_min: 10000,
+  pasv_max: 10100,
+  anonymous: false,
+});
+
+server.on('login', ({ username, password }, resolve, reject) => {
+  if (username === 'alice' && password === 'pass') {
+    return resolve({
+      root: '/home/alice',
+      cwd: '/uploads',  // initial working directory within root
+    });
+  }
+  return reject(new Error('Bad credentials'));
+});
+
+await server.listen();
+```
+
+### Anonymous access
+
+```js
+const server = new FtpServer({
+  url: 'ftp://0.0.0.0:21',
+  anonymous: true,   // accepts any username/password
+  root: '/srv/ftp',  // default root for all connections
+});
+
+server.on('login', (_, resolve) => resolve({}));
+
+await server.listen();
+```
+
+### TLS (FTPS)
+
+```js
+import fs from 'fs';
+
+const server = new FtpServer({
+  url: 'ftps://0.0.0.0:990',
+  tls: {
+    key: fs.readFileSync('server.key'),
+    cert: fs.readFileSync('server.crt'),
+  },
 });
 ```
 
 ## API
 
-### `new FtpSrv({options})`
+### `new FtpServer(options)`
 
-#### url
-URL string indicating the protocol, hostname, and port to listen on.
-- `ftp` - Plain FTP
-- `ftps` - Implicit FTP over TLS
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `url` | `string` | `'ftp://127.0.0.1:21'` | Protocol, hostname, and port to listen on. Use `ftp://` or `ftps://`. |
+| `root` | `string` | — | Default root directory for all connections (used when `login` resolve does not specify one). |
+| `pasv_url` | `string \| (clientIp: string) => string` | auto-detected | IP address to advertise for passive connections. If omitted, the client's IP is used for local connections; otherwise the server's bound address is used. |
+| `pasv_min` | `number` | `1024` | First port in the passive port range. |
+| `pasv_max` | `number` | `65535` | Last port in the passive port range. |
+| `anonymous` | `boolean` | `false` | Allow anonymous logins (any username/password accepted). |
+| `blacklist` | `string[]` | `[]` | FTP commands that are rejected globally. |
+| `whitelist` | `string[]` | `[]` | FTP commands that are allowed globally (all others rejected). |
+| `greeting` | `string \| string[]` | — | Message(s) sent to the client on connect. |
+| `tls` | `object` | — | Node.js TLS options (`key`, `cert`, etc.) for `ftps://` connections. |
+| `file_format` | `'ls' \| 'ep' \| function` | `'ls'` | Format for LIST responses. `'ls'` = Unix style, `'ep'` = EPLF, or a custom `(stat) => string` function. |
+| `log` | `Logger` | bunyan logger | A bunyan-compatible logger (`trace`, `debug`, `info`, `warn`, `error`, `fatal`, `child`). |
+| `timeout` | `number` | `0` | Idle socket timeout in milliseconds. `0` = disabled. |
+| `endOnProcessSignal` | `boolean` | `true` | Call `close()` and `process.exit(0)` on `SIGTERM`/`SIGINT`/`SIGQUIT`. |
 
-Default: `"ftp://127.0.0.1:21"`
+### `server.listen()` → `Promise<string>`
 
-#### pasv_url
-IP address or function to provide to the client for passive connections.
+Starts the server and begins accepting connections.
 
-#### pasv_min
-Starting port for passive connections. Default: `1024`
+### `server.close()` → `Promise<void>`
 
-#### pasv_max
-Ending port for passive connections. Default: `65535`
-
-#### greeting
-Array of lines or string to send when a client connects.
-
-#### tls
-Node TLS secure context object for implicit or explicit TLS connections.
-
-#### anonymous
-If true, allows anonymous login.
-
-#### blacklist
-Array of commands that are not allowed.
-
-#### whitelist
-Array of commands that are only allowed.
-
-#### file_format
-Format for file stat queries. Default: `"ls"`
-- `ls` - bin/ls format
-- `ep` - Easily Parsed LIST format
-- `function` - Custom format function
-
-#### log
-A bunyan logger instance.
-
-#### timeout
-Idle connection timeout in ms. Default: `0`
-
-#### endOnProcessSignal
-Whether to close server on SIGTERM/SIGINT/SIGQUIT. Default: `true`
+Gracefully closes all connections and stops the server.
 
 ## Events
 
 ### `login`
+
+Fired when a client attempts to log in. You **must** listen to this event and call `resolve` or `reject`.
+
 ```js
-ftpServer.on('login', ({ connection, username, password }, resolve, reject) => { ... });
+server.on('login', ({ connection, username, password }, resolve, reject) => {
+  // resolve with per-user options:
+  resolve({
+    root: '/srv/ftp/alice',  // root directory for this session
+    cwd: '/',                // initial working directory (relative to root)
+    fs: customFsInstance,    // custom FileSystem instance (optional)
+    blacklist: ['DELE'],     // per-connection command blacklist
+    whitelist: [],           // per-connection command whitelist
+  });
+
+  // or reject with an error:
+  reject(new Error('Invalid credentials'));
+});
+```
+
+### `connect`
+
+Fired when a new client socket connects (before login).
+
+```js
+server.on('connect', ({ connection, id, newConnectionCount }) => {});
 ```
 
 ### `disconnect`
-```js
-ftpServer.on('disconnect', ({ connection, id, newConnectionCount }) => { ... });
-```
 
-### `closed`
+Fired when a client disconnects.
+
 ```js
-ftpServer.on('closed', ({}) => { ... });
+server.on('disconnect', ({ connection, id, newConnectionCount }) => {});
 ```
 
 ### `client-error`
+
+Fired when an error occurs on a client connection.
+
 ```js
-ftpServer.on('client-error', ({ connection, context, error }) => { ... });
+server.on('client-error', ({ connection, context, error }) => {});
 ```
 
 ### `server-error`
+
+Fired when the underlying TCP server emits an error.
+
 ```js
-ftpServer.on('server-error', ({ error }) => { ... });
+server.on('server-error', ({ error }) => {});
 ```
 
-## File System
+### `closing` / `closed`
 
-The default file system can be extended:
+Fired when `close()` is called and when it completes.
+
+```js
+server.on('closing', () => {});
+server.on('closed', () => {});
+```
+
+## Custom File System
+
+Extend `FileSystem` to override how the server reads and writes files.
 
 ```js
 import { FileSystem } from '@electerm/ftp-srv';
 
 class MyFileSystem extends FileSystem {
-  constructor(connection, options) {
-    super(connection, options);
+  async list(dirPath = '.') {
+    // Return array of fs.Stats-like objects with a `name` property
+    const entries = await super.list(dirPath);
+    return entries.filter(e => !e.name.startsWith('.'));  // hide dotfiles
   }
 
   async get(fileName) {
-    // Custom implementation
+    return super.get(fileName);
   }
 }
+
+server.on('login', (_, resolve) => {
+  resolve({ fs: new MyFileSystem(connection, { root: '/srv/ftp' }) });
+});
+```
+
+The full interface that can be overridden:
+
+| Method | Description |
+|--------|-------------|
+| `currentDirectory()` | Returns the current working directory path. |
+| `get(fileName)` | Returns an `fs.Stats`-like object with a `name` property. |
+| `list(dirPath)` | Returns an array of `fs.Stats`-like objects with `name` properties. |
+| `chdir(dirPath)` | Changes the working directory. Returns the new path. |
+| `write(fileName, options)` | Returns `{ stream, clientPath }` for writing. |
+| `read(fileName, options)` | Returns `{ stream, clientPath }` for reading. |
+| `delete(fileName)` | Deletes a file. |
+| `mkdir(dirPath)` | Creates a directory. |
+| `rename(from, to)` | Renames a file or directory. |
+| `chmod(fileName, mode)` | Changes file permissions. |
+| `getUniqueName(fileName)` | Returns a unique file name (for STOU). |
+
+## Exports
+
+```js
+import FtpServer, {
+  FtpServer,       // named export (same class)
+  FtpSrv,          // backward-compat alias for the original ftp-srv package
+  FileSystem,
+  FtpConnection,
+  errors,
+} from '@electerm/ftp-srv';
 ```
 
 ## CLI
 
 ```bash
-npx ftp-srv ftp://0.0.0.0:9876 --root ~/Documents
+npx electerm-ftp-srv ftp://0.0.0.0:9876 --root ~/Documents
 ```
 
 ## License

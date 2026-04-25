@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import net from 'net';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import BaseConnector from './connector/base';
 import PassiveConnector from './connector/passive';
 import ActiveConnector from './connector/active';
@@ -45,7 +45,7 @@ class FtpConnection extends EventEmitter {
   constructor(server: FtpServer, options: ConnectionOptions) {
     super();
     this.server = server;
-    this.id = uuidv4();
+    this.id = randomUUID();
     this.commandSocket = options.socket;
     this.log = options.log.child({ id: this.id, ip: this.ip });
     this.commands = new Commands(this);

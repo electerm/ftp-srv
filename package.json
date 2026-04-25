@@ -6,7 +6,6 @@
     "ftp",
     "ftp-server",
     "ftp-srv",
-    "ftp-svr",
     "ftpd",
     "ftpserver",
     "server",
@@ -53,20 +52,15 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "bunyan": "^1.8.15",
-    "commander": "^14.0.3",
-    "dayjs": "^1.11.13",
-    "uuid": "^11.0.2"
+    "commander": "^14.0.3"
   },
   "devDependencies": {
     "@icetee/ftp": "^1.0.8",
-    "@types/bunyan": "^1.8.11",
     "@types/node": "^22.10.5",
-    "@types/uuid": "^10.0.0",
     "typescript": "^5.7.2",
     "vitest": "^3.0.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=16"
   }
 }

@@ -1,4 +1,4 @@
-import dayjs from 'dayjs';
+import { Time } from './time';
 import type { Stats } from 'fs';
 
 export function formatFileStatLs(stat: Stats & { name?: string }): string {
@@ -8,8 +8,8 @@ export function formatFileStatLs(stat: Stats & { name?: string }): string {
   const uid = stat.uid || 0;
   const gid = stat.gid || 0;
   const size = stat.size || 0;
-  const mtime = dayjs(stat.mtime);
-  const now = dayjs();
+  const mtime = Time.from(stat.mtime);
+  const now = Time.now();
 
   let dateStr: string;
   if (now.diff(mtime, 'month') > 6) {

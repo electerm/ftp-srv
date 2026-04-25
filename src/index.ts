@@ -1,7 +1,7 @@
 import net from 'net';
 import tls from 'tls';
 import { EventEmitter } from 'events';
-import { createLogger } from 'bunyan';
+import { createLogger } from './helpers/logger';
 import FtpConnection from './connection';
 import { getNextPortFactory } from './helpers/find-port';
 import type { FtpServerOptions, Logger } from './types';
