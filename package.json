@@ -1,6 +1,6 @@
 {
   "name": "@electerm/ftp-srv",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Modern, extensible FTP Server (TypeScript version)",
   "keywords": [
     "ftp",
