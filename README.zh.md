@@ -250,7 +250,7 @@ import FtpServer, {
 ## 命令行
 
 ```bash
-npx electerm-ftp-srv ftp://0.0.0.0:9876 --root ~/Documents
+npx electermftpsrv ftp://0.0.0.0:9876 --root ~/Documents
 ```
 
 ## License
