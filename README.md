@@ -5,9 +5,9 @@
 
 Modern, extensible FTP Server (TypeScript version).
 
-This is a TypeScript fork of [ftp-srv](https://github.com/autovance/ftp-srv), published in both ESM and CJS formats — with security vulnerabilities from the original removed. The API is backward-compatible with the original `ftp-srv`.
+This is a TypeScript fork of [ftp-srv](https://github.com/QuorumDMS/ftp-srv), published in both ESM and CJS formats — with security vulnerabilities from the original removed. The API is backward-compatible with the original `ftp-srv`.
 
-All credit for the original implementation goes to [Tyler Stewart](https://github.com/autovance/ftp-srv). See [CREDITS](CREDITS) for details.
+All credit for the original implementation goes to [Tyler Stewart](https://github.com/QuorumDMS/ftp-srv). See [CREDITS](CREDITS) for details.
 
 ## Install
 

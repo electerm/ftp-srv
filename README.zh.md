@@ -5,9 +5,9 @@
 
 现代、可扩展的 FTP 服务器（TypeScript 版本）。
 
-本项目是 [ftp-srv](https://github.com/autovance/ftp-srv) 的 TypeScript 重构版本，同时发布 ESM 和 CJS 格式——并修复了原版中的安全漏洞。API 与原版 `ftp-srv` 向后兼容。
+本项目是 [ftp-srv](https://github.com/QuorumDMS/ftp-srv) 的 TypeScript 重构版本，同时发布 ESM 和 CJS 格式——并修复了原版中的安全漏洞。API 与原版 `ftp-srv` 向后兼容。
 
-原始实现的全部功劳归于原作者 [Tyler Stewart](https://github.com/autovance/ftp-srv)。详见 [CREDITS](CREDITS) 文件。
+原始实现的全部功劳归于原作者 [Tyler Stewart](https://github.com/QuorumDMS/ftp-srv)。详见 [CREDITS](CREDITS) 文件。
 
 ## 安装
 
