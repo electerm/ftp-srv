@@ -6,3 +6,6 @@ dist/
 npm-debug.log
 /temp
 /src-old
+.kilo
+.codeartsdoer
+.DS_Store

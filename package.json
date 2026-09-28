@@ -1,7 +1,18 @@
 {
   "name": "@electerm/ftp-srv",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Modern, extensible FTP Server (TypeScript version)",
+    "scripts": {
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc --project tsconfig.esm.json && node scripts/fix-esm.mjs",
+    "build:cjs": "rm -rf dist/cjs && tsc --project tsconfig.cjs.json && node scripts/fix-cjs.mjs",
+    "dev": "tsc --watch --project tsconfig.esm.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "cd integration && node --test test-cjs.js test-esm.js",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
   "keywords": [
     "ftp",
     "ftp-server",
@@ -44,17 +55,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/electerm/ftp-srv.git"
-  },
-  "scripts": {
-    "build": "npm run build:esm && npm run build:cjs",
-    "build:esm": "tsc --project tsconfig.esm.json && node scripts/fix-esm.mjs",
-    "build:cjs": "rm -rf dist/cjs && tsc --project tsconfig.cjs.json && node scripts/fix-cjs.mjs",
-    "dev": "tsc --watch --project tsconfig.esm.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:integration": "cd integration && node --test test-cjs.js test-esm.js",
-    "lint": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "commander": "^14.0.3"
