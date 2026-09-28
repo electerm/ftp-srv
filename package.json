@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:integration": "cd integration && node --test test-cjs.js test-esm.js",
     "lint": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "pub": "npm publish --access public"
   },
   "keywords": [
     "ftp",
