@@ -103,6 +103,24 @@ const server = new FtpServer({
 });
 ```
 
+Both flavours are supported once `tls` is configured:
+
+- **Implicit FTPS** — `url: 'ftps://...'`, the whole control channel is TLS from the first byte.
+- **Explicit FTPS (FTPES)** — `url: 'ftp://...'`, the client sends `AUTH TLS` and the control channel is
+  upgraded in place (RFC 4217), then `PBSZ 0` / `PROT P` before transferring. Data connections are
+  encrypted as well. `FEAT` only advertises `AUTH TLS` / `PBSZ` / `PROT` when `tls` is configured; without
+  `tls` the server answers `502` instead of pretending to upgrade.
+
+## Security notes
+
+- **FTP bounce protection** — `PORT` / `EPRT` are only honoured when the supplied address is the client's
+  own (the peer address of the control connection), and a passive data connection coming from any other
+  host is rejected with `550` and dropped. Both commands require a logged-in session.
+- **Passive ports are released** — sending `PASV` / `EPSV` again tears down the previous listener, and an
+  idle passive listener is closed after 30s, so a client that never dials in cannot exhaust the port range.
+- **Encrypted data channels** — with `tls` configured, the passive/active data connections are TLS too,
+  not just the control channel.
+
 ## API
 
 ### `new FtpServer(options)`
@@ -111,7 +129,7 @@ const server = new FtpServer({
 |--------|------|---------|-------------|
 | `url` | `string` | `'ftp://127.0.0.1:21'` | Protocol, hostname, and port to listen on. Use `ftp://` or `ftps://`. |
 | `root` | `string` | — | Default root directory for all connections (used when `login` resolve does not specify one). |
-| `pasv_url` | `string \| (clientIp: string) => string` | auto-detected | IP address to advertise for passive connections. If omitted, the client's IP is used for local connections; otherwise the server's bound address is used. |
+| `pasv_url` | `string \| (clientIp: string) => string` | auto-detected | IP address to advertise for passive connections. When omitted, the local address of the control connection (the address the client actually reached us on) is used, falling back to the bound address / an interface on the client's subnet. |
 | `pasv_min` | `number` | `1024` | First port in the passive port range. |
 | `pasv_max` | `number` | `65535` | Last port in the passive port range. |
 | `anonymous` | `boolean` | `false` | Allow anonymous logins (any username/password accepted). |

@@ -1,8 +1,29 @@
 import net from 'net';
+import tls from 'tls';
 import BaseConnector from './base';
 import type FtpConnection from '../connection';
 import { ConnectorError } from '../errors';
-import { isLocalAddress } from '../helpers/is-local';
+import { connectionRemoteAddress, sameIp } from '../helpers/same-ip';
+
+/** How long a client may take to open the data connection after PASV. */
+export const PASV_CONNECT_TIMEOUT = 5000;
+
+/**
+ * How long a PASV listener may sit unused. Clients that send PASV and never
+ * dial (or die before RETR) would otherwise pin a port of the passive range
+ * forever — a handful of those and the range is gone.
+ */
+export const PASV_IDLE_TIMEOUT = 30000;
+
+interface PassiveOptions {
+  pasvIp?: string | ((address: string) => string);
+  minPort: number;
+  maxPort: number;
+}
+
+interface ConnectionListener {
+  (socket: net.Socket): void;
+}
 
 class PassiveConnector extends BaseConnector {
   private pasvIp: string | ((address: string) => string) | null;
@@ -10,8 +31,9 @@ class PassiveConnector extends BaseConnector {
   private maxPort: number;
   private listeningPort: number | null;
   private connectionResolver: ((socket: net.Socket) => void) | null = null;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(connection: FtpConnection, options: { pasvIp?: string | ((address: string) => string); minPort: number; maxPort: number }) {
+  constructor(connection: FtpConnection, options: PassiveOptions) {
     super(connection);
     this.pasvIp = options.pasvIp || null;
     this.minPort = options.minPort;
@@ -19,75 +41,134 @@ class PassiveConnector extends BaseConnector {
     this.listeningPort = null;
   }
 
+  private clearIdleTimer(): void {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+  }
+
+  closeServer(): void {
+    this.clearIdleTimer();
+    super.closeServer();
+  }
+
+  /**
+   * Reject data connections that do not come from the client owning the
+   * control connection: otherwise anyone who can guess the passive port can
+   * steal (or poison) another session's transfer.
+   */
+  private handleConnection: ConnectionListener = (socket) => {
+    const controlIp = connectionRemoteAddress(this.connection);
+
+    if (!sameIp(controlIp, socket.remoteAddress)) {
+      (this.connection as any).log?.error?.(
+        { pasv_connection: socket.remoteAddress, cmd_connection: controlIp },
+        'Connecting addresses do not match'
+      );
+      socket.destroy();
+      this.closeServer();
+      Promise.resolve((this.connection as any).reply(550, 'Remote addresses do not match'))
+        .then(() => (this.connection as any).close())
+        .catch(() => {});
+      return;
+    }
+
+    this.clearIdleTimer();
+    // One transfer per PASV: free the port as soon as the client dials in.
+    this.closeServer();
+    this.dataSocket = socket;
+
+    socket.on('error', (err) => this.emitClientError('dataSocket', err));
+
+    if (this.connectionResolver) {
+      const resolver = this.connectionResolver;
+      this.connectionResolver = null;
+      resolver(socket);
+    }
+  };
+
   async setup(): Promise<{ ip: string; port: number }> {
-    this.dataSocket = null;
+    // A new PASV/EPSV replaces the previous listener: never leave it behind.
+    this.end();
     this.connectionResolver = null;
 
-    return new Promise((resolve, reject) => {
-      const server = net.createServer();
-      this.server = server;
+    const secure = this.secure;
+    let server: net.Server;
 
-      // Capture the data connection as soon as the client connects,
-      // even if getSocket() has not been called yet.
-      server.on('connection', (socket) => {
-        this.dataSocket = socket;
-        server.close();
-        this.server = null;
-        if (this.connectionResolver) {
-          const resolver = this.connectionResolver;
-          this.connectionResolver = null;
-          resolver(socket);
-        }
-      });
+    if (secure) {
+      const tlsOptions = this.tlsOptions();
+      if (!tlsOptions) {
+        throw new ConnectorError('TLS options are not configured on this server');
+      }
+      server = tls.createServer({ ...tlsOptions }, this.handleConnection);
+    } else {
+      server = net.createServer(this.handleConnection);
+    }
 
-      server.once('error', (err) => {
-        reject(new ConnectorError(`Failed to create passive server: ${err.message}`));
-      });
-
-      const tryListen = (port: number) => {
-        server.listen(port, () => {
-          const address = server.address();
-          if (typeof address === 'object' && address) {
-            this.listeningPort = address.port;
-
-            let pasvIp: string;
-            if (typeof this.pasvIp === 'function') {
-              const clientIp = this.connection.ip;
-              pasvIp = this.pasvIp(clientIp);
-            } else if (this.pasvIp) {
-              pasvIp = this.pasvIp;
-            } else {
-              pasvIp = this.connection.ip || '127.0.0.1';
-            }
-
-            resolve({ ip: pasvIp, port: address.port });
-          }
-        });
-      };
-
-      const findPort = async (): Promise<number> => {
-        for (let port = this.minPort; port <= this.maxPort; port++) {
-          try {
-            await new Promise<void>((resolve, reject) => {
-              const testServer = net.createServer();
-              testServer.once('error', reject);
-              testServer.listen(port, () => {
-                testServer.close();
-                resolve();
-              });
-            });
-            return port;
-          } catch {
-            continue;
-          }
-        }
-        throw new ConnectorError('No available ports');
-      };
-
-      findPort()
-        .then(tryListen)
-        .catch(reject);
+    this.server = server;
+    server.maxConnections = 1;
+    server.on('error', (err) => {
+      this.emitClientError('dataServer', err);
     });
+
+    const port = await this.findPort();
+
+    await new Promise<void>((resolve, reject) => {
+      const onError = (err: Error): void => {
+        reject(new ConnectorError(`Failed to create passive server: ${err.message}`));
+      };
+      server.once('error', onError);
+      server.listen(port, () => {
+        server.removeListener('error', onError);
+        resolve();
+      });
+    });
+
+    const address = server.address();
+    if (!address || typeof address !== 'object') {
+      this.closeServer();
+      throw new ConnectorError('Failed to create passive server');
+    }
+    this.listeningPort = address.port;
+
+    this.idleTimer = setTimeout(() => {
+      (this.connection as any).log?.debug?.({ port: this.listeningPort }, 'Passive server idle timeout');
+      this.closeServer();
+    }, PASV_IDLE_TIMEOUT);
+    if (typeof this.idleTimer.unref === 'function') {
+      this.idleTimer.unref();
+    }
+
+    let pasvIp: string;
+    if (typeof this.pasvIp === 'function') {
+      pasvIp = this.pasvIp((this.connection as any).ip);
+    } else if (this.pasvIp) {
+      pasvIp = this.pasvIp;
+    } else {
+      pasvIp = (this.connection as any).ip || '127.0.0.1';
+    }
+
+    return { ip: pasvIp, port: address.port };
+  }
+
+  private async findPort(): Promise<number> {
+    for (let port = this.minPort; port <= this.maxPort; port++) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const testServer = net.createServer();
+          testServer.once('error', reject);
+          testServer.listen(port, () => {
+            testServer.close();
+            resolve();
+          });
+        });
+        return port;
+      } catch {
+        continue;
+      }
+    }
+    throw new ConnectorError('No available ports');
   }
 
   async getSocket(): Promise<net.Socket> {
@@ -103,8 +184,10 @@ class PassiveConnector extends BaseConnector {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.connectionResolver = null;
+        // Free the port right away instead of waiting for the idle timeout.
+        this.closeServer();
         reject(new ConnectorError('Passive connection timed out'));
-      }, 5000);
+      }, PASV_CONNECT_TIMEOUT);
 
       this.connectionResolver = (socket) => {
         clearTimeout(timeout);

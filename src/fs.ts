@@ -154,8 +154,19 @@ class FileSystem {
     await fsAsync.chmod(fsPath, modeNum);
   }
 
-  getUniqueName(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+  /**
+   * Name for STOU. The requested name (if any) is passed in, exactly like the
+   * upstream API promised, so overriding this in a subclass still gets it.
+   */
+  getUniqueName(fileName = ''): string {
+    const base = Date.now().toString(36) + Math.random().toString(36).slice(2, 11);
+    if (!fileName) {
+      return base;
+    }
+    const dir = path.dirname(fileName);
+    const name = path.basename(fileName);
+    const unique = `${base}_${name}`;
+    return dir && dir !== '.' ? path.join(dir, unique) : unique;
   }
 }
 

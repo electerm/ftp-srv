@@ -11,7 +11,7 @@ describe(CMD, () => {
       fs: { delete: vi.fn().mockResolvedValue(undefined) },
     };
 
-    const cmd = await import(`@dist/commands/registration/${CMD.toLowerCase()}.js`);
+    const cmd = await import(`../../../src/commands/registration/${CMD.toLowerCase()}`);
     cmdFn = cmd.default.handler.bind(mockClient);
   });
 
@@ -22,7 +22,7 @@ describe(CMD, () => {
   describe('check', () => {
     it('fails on no fs', async () => {
       const badMockClient = { reply: vi.fn().mockResolvedValue({}) };
-      const cmd = await import(`@dist/commands/registration/${CMD.toLowerCase()}.js`);
+      const cmd = await import(`../../../src/commands/registration/${CMD.toLowerCase()}`);
       const badCmdFn = cmd.default.handler.bind(badMockClient);
 
       await badCmdFn({ command: { arg: null } });
@@ -31,7 +31,7 @@ describe(CMD, () => {
 
     it('fails on no fs delete command', async () => {
       const badMockClient = { reply: vi.fn().mockResolvedValue({}), fs: {} };
-      const cmd = await import(`@dist/commands/registration/${CMD.toLowerCase()}.js`);
+      const cmd = await import(`../../../src/commands/registration/${CMD.toLowerCase()}`);
       const badCmdFn = cmd.default.handler.bind(badMockClient);
 
       await badCmdFn({ command: { arg: null } });

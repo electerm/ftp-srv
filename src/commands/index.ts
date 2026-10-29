@@ -21,6 +21,8 @@ class FtpCommands {
   public blacklist: string[];
   public whitelist: string[];
   public previousCommand: any;
+  /** Exposed so FEAT can advertise the `flags.feat` of each command. */
+  public readonly registry = REGISTRY;
 
   constructor(connection: FtpConnection) {
     this.connection = connection;

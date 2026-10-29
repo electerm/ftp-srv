@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import type { CommandHandlerOptions } from '../index';
 
 export default {
@@ -7,8 +6,10 @@ export default {
     if (!this.fs) return this.reply(550, 'File system not instantiated');
     if (!this.fs.write) return this.reply(402, 'Not supported');
 
-    const uniqueName = randomUUID().replace(/-/g, '') + (command.arg ? '_' + command.arg : '');
-    
+    // getUniqueName(fileName) keeps the requested directory/name in the
+    // generated one, and stays overridable by custom file systems.
+    const uniqueName = this.fs.getUniqueName(command.arg || '');
+
     try {
       const { stream, clientPath } = this.fs.write(uniqueName);
       await this.connector.waitForConnection();

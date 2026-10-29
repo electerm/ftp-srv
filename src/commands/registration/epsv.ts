@@ -5,6 +5,9 @@ import { resolvePasvIp } from '../../helpers/resolve-pasv-ip';
 export default {
   directive: 'EPSV',
   handler: async function ({ log, command }: CommandHandlerOptions) {
+    // Same as PASV: never leave the previous data listener behind.
+    this.connector?.end();
+
     this.connector = new PassiveConnector(this, {
       pasvIp: resolvePasvIp(this),
       minPort: this.server.options.pasv_min || 1024,
@@ -16,7 +19,7 @@ export default {
       return this.reply(229, `Entering Extended Passive Mode (|||${port}|)`);
     } catch (err: any) {
       log.error(err);
-      return this.reply(425, err.message || 'EPSV failed');
+      return this.reply(err.code || 425, err.message || 'EPSV failed');
     }
   },
   syntax: '{{cmd}}',

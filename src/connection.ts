@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import net from 'net';
+import tls from 'tls';
 import { randomUUID } from 'crypto';
 import BaseConnector from './connector/base';
 import PassiveConnector from './connector/passive';
@@ -34,7 +35,7 @@ class FtpConnection extends EventEmitter {
   public commands: Commands;
   public transferType: string;
   public encoding: string;
-  public bufferSize: boolean;
+  public bufferSize: boolean | number;
   public authenticated: boolean;
   public fs: FileSystem | null;
   public connector: BaseConnector;
@@ -63,20 +64,74 @@ class FtpConnection extends EventEmitter {
       maxPort: this.server.options.pasv_max || 65535,
     });
 
-    this.commandSocket.on('error', (err) => {
-      this.log.error(err, 'Client error');
-      this.server.emit('client-error', { connection: this, context: 'commandSocket', error: err });
+    this.bindSocket(this.commandSocket);
+  }
+
+  private _onSocketError = (err: Error): void => {
+    this.log.error(err, 'Client error');
+    this.server.emit('client-error', { connection: this, context: 'commandSocket', error: err });
+  };
+
+  private _onSocketData = (data: Buffer): void => {
+    void this._handleData(data);
+  };
+
+  private _onSocketTimeout = (): void => {
+    this.log.trace('Client timeout');
+    void this.close();
+  };
+
+  private _onSocketClose = (): void => {
+    if (this.connector) this.connector.end();
+    if (this.commandSocket && !this.commandSocket.destroyed) this.commandSocket.destroy();
+    this.removeAllListeners();
+  };
+
+  private bindSocket(socket: net.Socket): void {
+    socket.on('error', this._onSocketError);
+    socket.on('data', this._onSocketData);
+    socket.on('timeout', this._onSocketTimeout);
+    socket.on('close', this._onSocketClose);
+  }
+
+  private unbindSocket(socket: net.Socket): void {
+    socket.removeListener('error', this._onSocketError);
+    socket.removeListener('data', this._onSocketData);
+    socket.removeListener('timeout', this._onSocketTimeout);
+    socket.removeListener('close', this._onSocketClose);
+  }
+
+  /**
+   * Upgrade the control channel to TLS in place (AUTH TLS, RFC 4217).
+   *
+   * The caller must pause the socket and send the 234 before calling this, so a
+   * fast client's ClientHello is buffered instead of being parsed as commands.
+   * From here on `secure` is true, which makes the data channels encrypt too.
+   */
+  async makeSecure(): Promise<void> {
+    if (this._secure) {
+      return;
+    }
+    const tlsOptions = this.server.options.tls;
+    if (!tlsOptions) {
+      throw new errors.GeneralError('TLS is not configured on this server', 502);
+    }
+
+    const raw = this.commandSocket;
+    this.unbindSocket(raw);
+
+    const secureSocket = new tls.TLSSocket(raw, {
+      isServer: true,
+      secureContext: tls.createSecureContext(tlsOptions),
     });
-    this.commandSocket.on('data', this._handleData.bind(this));
-    this.commandSocket.on('timeout', () => {
-      this.log.trace('Client timeout');
-      this.close();
-    });
-    this.commandSocket.on('close', () => {
-      if (this.connector) this.connector.end();
-      if (this.commandSocket && !this.commandSocket.destroyed) this.commandSocket.destroy();
-      this.removeAllListeners();
-    });
+
+    this.commandSocket = secureSocket;
+    this._secure = true;
+    this.bindSocket(secureSocket);
+
+    // The handshake runs on resume; a client that never completes it is
+    // covered by the socket timeout / close handlers.
+    secureSocket.resume();
   }
 
   private async _handleData(data: Buffer): Promise<void> {

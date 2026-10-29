@@ -14,6 +14,7 @@ describe(CMD, () => {
         },
       },
       connector: {
+        end: vi.fn(),
         setup: vi.fn().mockResolvedValue({ ip: '127.0.0.1', port: 8080 }),
       },
     };
@@ -30,5 +31,11 @@ describe(CMD, () => {
     await cmdFn({ command: { arg: null } });
     const [code] = mockClient.reply.mock.calls[0];
     expect(code).toBe(229);
+  });
+
+  it('frees the previous data connector before listening again', async () => {
+    const previous = mockClient.connector;
+    await cmdFn({ command: { arg: null } });
+    expect(previous.end).toHaveBeenCalled();
   });
 });

@@ -66,11 +66,13 @@ export function resolvePasvIp(connection: any): string {
   const clientIp = (connection.ip || '').replace(/^::ffff:/, '');
 
   // The client reached us on one of our own addresses (or loopback), so
-  // echoing it back is always reachable.
-  if (clientIp && isLocalAddress(clientIp)) return clientIp;
+  // echoing it back is always reachable. Only for IPv4: the PASV reply cannot
+  // express an IPv6 address, and an IPv6 client has EPSV for that.
+  if (clientIp && ipv4ToInt(clientIp) !== null && isLocalAddress(clientIp)) return clientIp;
 
   const serverAddr = connection.server?.server?.address?.() as net.AddressInfo | null;
-  if (serverAddr && serverAddr.address !== '0.0.0.0' && serverAddr.address !== '::') {
+  if (serverAddr && ipv4ToInt(serverAddr.address) !== null &&
+    serverAddr.address !== '0.0.0.0') {
     return serverAddr.address;
   }
 

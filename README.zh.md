@@ -103,6 +103,21 @@ const server = new FtpServer({
 });
 ```
 
+配置了 `tls` 后两种方式都支持：
+
+- **隐式 FTPS** —— `url: 'ftps://...'`，控制连接从第一个字节起就是 TLS。
+- **显式 FTPS（FTPES）** —— `url: 'ftp://...'`，客户端发 `AUTH TLS` 后控制连接就地升级（RFC 4217），
+  传输前再 `PBSZ 0` / `PROT P`。数据连接同样加密。`FEAT` 只在配置了 `tls` 时才通告 `AUTH TLS` / `PBSZ` /
+  `PROT`；没配 `tls` 时直接回 `502`，不会假装升级成功。
+
+## 安全说明
+
+- **FTP bounce 防护** —— 只有当 `PORT` / `EPRT` 给出的地址就是客户端自己（控制连接的对端地址）时才接受；
+  被动数据连接来自其他主机时一律回 `550` 并断开。两个命令都要求已登录。
+- **被动端口会释放** —— 重复发送 `PASV` / `EPSV` 会先关闭上一个监听，空闲 30s 的被动监听也会自动关闭，
+  客户端连进来却不传输也吃不满端口段。
+- **数据通道加密** —— 配置 `tls` 后，被动/主动数据连接同样是 TLS，不只是控制连接。
+
 ## API
 
 ### `new FtpServer(options)`
@@ -111,7 +126,7 @@ const server = new FtpServer({
 |------|------|--------|------|
 | `url` | `string` | `'ftp://127.0.0.1:21'` | 监听的协议、主机名和端口。使用 `ftp://` 或 `ftps://`。 |
 | `root` | `string` | — | 所有连接的默认根目录（当 `login` 的 resolve 未指定时使用）。 |
-| `pasv_url` | `string \| (clientIp: string) => string` | 自动检测 | 被动连接时向客户端通告的 IP。省略时，本地连接使用客户端 IP，否则使用服务器绑定地址。 |
+| `pasv_url` | `string \| (clientIp: string) => string` | 自动检测 | 被动连接时向客户端通告的 IP。省略时优先使用控制连接的本机地址（客户端实际连进来的地址），再回落到绑定地址 / 与客户端同网段的网卡地址。 |
 | `pasv_min` | `number` | `1024` | 被动端口范围起始值。 |
 | `pasv_max` | `number` | `65535` | 被动端口范围结束值。 |
 | `anonymous` | `boolean` | `false` | 允许匿名登录（接受任意用户名/密码）。 |

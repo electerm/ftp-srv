@@ -1,7 +1,6 @@
 import net from 'net';
 import { EventEmitter } from 'events';
 import type FtpConnection from '../connection';
-import { ConnectorError } from '../errors';
 
 export interface ConnectorOptions {
   socket?: net.Socket;
@@ -25,21 +24,47 @@ abstract class BaseConnector extends EventEmitter {
     return this.dataSocket;
   }
 
+  /** The data channel has to be encrypted as soon as the control channel is. */
+  get secure(): boolean {
+    return Boolean((this.connection as any)?.secure);
+  }
+
+  protected tlsOptions(): any {
+    return (this.connection as any)?.server?.options?.tls || null;
+  }
+
+  protected emitClientError(context: string, error: Error): void {
+    const server: any = (this.connection as any)?.server;
+    if (server && typeof server.emit === 'function') {
+      server.emit('client-error', { connection: this.connection, context, error });
+    }
+  }
+
+  closeServer(): void {
+    if (this.server) {
+      const server = this.server;
+      this.server = null;
+      server.close();
+    }
+  }
+
   end(): void {
     if (this.dataSocket) {
       this.dataSocket.destroy();
       this.dataSocket = null;
     }
-    if (this.server) {
-      this.server.close();
-      this.server = null;
-    }
+    this.closeServer();
   }
 
   protected createDataSocket(): net.Socket {
     this.dataSocket = new net.Socket();
     this.dataSocket.on('error', (err) => {
-      this.emit('error', err);
+      // Emitting an unhandled 'error' would throw and take the whole server
+      // down, which is easy to trigger: PORT an address that then refuses.
+      if (this.listenerCount('error') > 0) {
+        this.emit('error', err);
+      }
+      this.emitClientError('dataSocket', err);
     });
     return this.dataSocket;
   }

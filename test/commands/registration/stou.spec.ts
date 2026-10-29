@@ -17,6 +17,7 @@ describe(CMD, () => {
       emit: vi.fn(),
       restByteCount: 0,
       fs: {
+        getUniqueName: vi.fn((fileName: string) => `uniq_${fileName || 'x'}`),
         write: vi.fn().mockReturnValue({
           stream: {
             pipe: vi.fn(),
@@ -40,5 +41,11 @@ describe(CMD, () => {
   it('successful', async () => {
     await cmdFn({ command: { arg: null } });
     expect(mockClient.reply).toHaveBeenCalled();
+  });
+
+  it('asks the file system for a unique name, passing the requested one', async () => {
+    await cmdFn({ command: { arg: 'firmware.bin' } });
+    expect(mockClient.fs.getUniqueName).toHaveBeenCalledWith('firmware.bin');
+    expect(mockClient.fs.write.mock.calls[0][0]).toBe('uniq_firmware.bin');
   });
 });

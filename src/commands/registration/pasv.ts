@@ -5,6 +5,10 @@ import { resolvePasvIp } from '../../helpers/resolve-pasv-ip';
 export default {
   directive: 'PASV',
   handler: async function ({ log, command }: CommandHandlerOptions) {
+    // Free the previous listener before taking a new port: a client that sends
+    // PASV without ever dialing would otherwise leak one port per command.
+    this.connector?.end();
+
     this.connector = new PassiveConnector(this, {
       pasvIp: resolvePasvIp(this),
       minPort: this.server.options.pasv_min || 1024,

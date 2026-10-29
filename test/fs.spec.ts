@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import path from 'path';
-import { FileSystem } from '@dist/index.js';
+import { FileSystem } from '../src/index';
 
 describe('FileSystem', () => {
   let fs: any;
@@ -67,6 +67,30 @@ describe('FileSystem', () => {
       expect(result).toBeTypeOf('object');
       expect(result.clientPath).toBe(path.normalize('/cool/file.txt'));
       expect(result.fsPath).toBe(path.resolve('/tmp/ftp-srv/cool/file.txt'));
+    });
+  });
+
+  describe('#getUniqueName', () => {
+    it('generates a name without arguments', () => {
+      const name = fs.getUniqueName();
+      expect(name).toBeTypeOf('string');
+      expect(name.length).toBeGreaterThan(0);
+    });
+
+    it('generates different names', () => {
+      expect(fs.getUniqueName()).not.toBe(fs.getUniqueName());
+    });
+
+    it('keeps the requested file name (upstream signature)', () => {
+      const name = fs.getUniqueName('firmware.bin');
+      expect(name).toContain('firmware.bin');
+      expect(name).not.toBe('firmware.bin');
+    });
+
+    it('keeps the requested directory', () => {
+      const name = fs.getUniqueName('/updates/firmware.bin');
+      expect(path.dirname(name)).toBe('/updates');
+      expect(path.basename(name)).toContain('firmware.bin');
     });
   });
 });

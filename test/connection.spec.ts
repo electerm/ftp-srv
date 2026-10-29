@@ -1,6 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EventEmitter } from 'events';
+import net from 'net';
+import tls from 'tls';
+import fs from 'fs';
+import path from 'path';
 import FtpConnection from '../src/connection';
+
+const certDir = path.resolve(process.cwd(), 'test/cert');
+const readFile = (name: string): Buffer => fs.readFileSync(path.join(certDir, name));
 
 function fakeLogger(): any {
   const logger: any = {
@@ -73,3 +80,45 @@ describe('FtpConnection.close', () => {
     expect(socket.write).not.toHaveBeenCalled();
   });
 });
+
+describe('FtpConnection.makeSecure', () => {
+  it('refuses to upgrade when the server has no TLS options', async () => {
+    const socket = fakeSocket(true);
+    const connection = new FtpConnection(fakeServer(), { log: fakeLogger(), socket });
+
+    await expect(connection.makeSecure()).rejects.toThrow('TLS is not configured');
+    expect(connection.secure).toBe(false);
+  });
+
+  it('wraps the control socket in TLS and marks the connection secure', async () => {
+    const { socket, client } = await socketPair();
+    const server = fakeServer();
+    server.options.tls = { key: readFile('server.key'), cert: readFile('server.crt') };
+    const connection = new FtpConnection(server, { log: fakeLogger(), socket });
+
+    await connection.makeSecure();
+
+    expect(connection.commandSocket).toBeInstanceOf(tls.TLSSocket);
+    expect(connection.commandSocket).not.toBe(socket);
+    expect(connection.secure).toBe(true);
+
+    client.destroy();
+    connection.commandSocket.destroy();
+  });
+});
+
+async function socketPair (): Promise<{ socket: net.Socket; client: net.Socket }> {
+  const server = net.createServer();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+  const port = (server.address() as net.AddressInfo).port;
+  const client = net.createConnection({ host: '127.0.0.1', port });
+  client.on('error', () => {});
+  // Attach both listeners before awaiting either event: 'connect' may fire
+  // while we are still waiting for the server's 'connection'.
+  const connected = new Promise<void>((resolve) => client.once('connect', () => resolve()));
+  const accepted = new Promise<net.Socket>((resolve) => server.once('connection', resolve));
+  const socket = await accepted;
+  await connected;
+  server.close();
+  return { socket, client };
+}

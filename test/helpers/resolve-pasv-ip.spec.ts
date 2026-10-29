@@ -120,5 +120,11 @@ describe('resolvePasvIp', () => {
     it('still honours an explicit pasv_url', () => {
       expect(resolvePasvIp(connection('10.100.110.99', '0.0.0.0', '1.2.3.4', '10.100.110.5'))).toBe('1.2.3.4');
     });
+
+    it('never puts an IPv6 address in a PASV reply', () => {
+      // PASV cannot express IPv6; an IPv6 client has to use EPSV.
+      expect(resolvePasvIp(connection('::1', '0.0.0.0', null, '::1'))).toBe('10.200.101.109');
+      expect(resolvePasvIp(connection('fe80::1', '::', null, 'fe80::1'))).toBe('10.200.101.109');
+    });
   });
 });

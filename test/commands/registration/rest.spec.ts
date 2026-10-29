@@ -10,7 +10,7 @@ describe(CMD, () => {
       reply: vi.fn().mockResolvedValue({}),
     };
 
-    const cmd = await import(`@dist/commands/registration/${CMD.toLowerCase()}.js`);
+    const cmd = await import(`../../../src/commands/registration/${CMD.toLowerCase()}`);
     cmdFn = cmd.default.handler.bind(mockClient);
   });
 
