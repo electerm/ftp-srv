@@ -144,7 +144,10 @@ class FtpConnection extends EventEmitter {
   }
 
   async close(code: number = 421, message: string = 'Closing connection'): Promise<void> {
-    if (code) {
+    // A dead socket cannot receive the goodbye reply: the client already closed
+    // it. Writing anyway only produces a "Socket not writable" error on every
+    // disconnect, including successful ones, which reads like a server fault.
+    if (code && this.commandSocket?.writable) {
       await this.reply(code, message);
     }
     this.commandSocket?.destroy();

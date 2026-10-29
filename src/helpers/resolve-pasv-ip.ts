@@ -55,6 +55,14 @@ export function resolvePasvIp(connection: any): string {
   const pasvUrl = connection.server?.options?.pasv_url;
   if (pasvUrl) return pasvUrl;
 
+  // The local address of the control connection is the address the client
+  // actually reached us on, so it is reachable from that client by definition.
+  // Guessing from the interface list instead is a lottery on a multi-homed
+  // host: VPN / utun / docker / bridge interfaces often come first and a client
+  // told to dial one of those gives up right after the 227.
+  const localIp = (connection.commandSocket?.localAddress || '').replace(/^::ffff:/, '');
+  if (localIp && ipv4ToInt(localIp) !== null) return localIp;
+
   const clientIp = (connection.ip || '').replace(/^::ffff:/, '');
 
   // The client reached us on one of our own addresses (or loopback), so

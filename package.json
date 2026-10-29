@@ -1,6 +1,6 @@
 {
   "name": "@electerm/ftp-srv",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Modern, extensible FTP Server (TypeScript version)",
     "scripts": {
     "build": "npm run build:esm && npm run build:cjs",
